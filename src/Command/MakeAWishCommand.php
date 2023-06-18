@@ -10,6 +10,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Process\Process;
 
 class MakeAWishCommand extends Command
 {
@@ -35,15 +36,8 @@ class MakeAWishCommand extends Command
 
         $output->writeln('Executing...');
 
-        // auslagern in service
-        while (@ ob_end_flush()); // end all output buffers if any
-
-        $proc = popen($command, 'r');
-        while (!feof($proc))
-        {
-            echo fread($proc, 4096);
-            @ flush();
-        }
+        $process = Process::fromShellCommandline($command);
+        $process->run(fn($type, $data) => $output->writeln($data));
 
         return Command::SUCCESS;
     }
