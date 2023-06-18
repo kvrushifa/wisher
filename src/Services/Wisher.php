@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\DTOs\Context;
+use App\DTOs\HandleShellCommand;
+use App\DTOs\SpecifyContextCommand;
 use OpenAI\Client;
 use OpenAI\Responses\Chat\CreateResponse;
+use OpenAI\Responses\Chat\CreateResponseFunctionCall;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
@@ -21,45 +24,60 @@ class Wisher
     {
     }
 
-    public function wish(string $prompt, Context $context): string
+    public function wish(string $prompt, Context $context): HandleShellCommand
     {
         /** @var CreateResponse $result */
         $result = $this->cache->get(md5($prompt), function (ItemInterface $item) use ($prompt, $context) {
+            $item->expiresAfter(1);
             $completions = $this->openaiClient->chat();
 
-            $messages[] = ['role' => 'user', 'content' => $prompt];
-            $messages[] = ['role' => 'system', 'content' => (string) $context];
+            $messages[] = [
+                'role' => 'user',
+                'content' => $prompt,
+            ];
+            $messages[] = [
+                'role' => 'system',
+                'content' => 'You will generate a shell command which can be run in the following context:' . (string) $context . '. If the user input is to vague, ask for more context in by using the contextQuestion',
+            ];
 
-            $result = $completions->create([
+            return $completions->create([
                 'model' => 'gpt-3.5-turbo-0613',
                 'messages' => $messages,
                 'functions' => [
                     [
-                        "name" => "get_shell_command",
-                        "description" => "Receives a one line shell command which executes the user_prompt",
+                        "name" => "handle_shell_command",
+                        "description" => <<<EOD
+Receives a one line shell command as value for executableShellCommand which can be executed on the user's system.
+If the prompt is unclear, too vague or has a missing part always ask the user for more context using the contextQuestion.
+Note that answered of the question's are not always deterministic
+EOD,
                         "parameters" => [
                             "type" => "object",
                             "properties" => [
-                                "command" => [
+                                "executableShellCommand" => [
                                     "type" => "string",
-                                    "description" => "A shell command which can run on the specific operating system"
+                                    "description" => "A shell command that can be executed without further information."
                                 ],
-                                "context_question" => [
+                                "contextQuestion" => [
                                     "type" => "string",
-                                    "description" => "A question which can be asked to the user if more information are required, can be empty"
+                                    "description" => "A question which can be asked to the user if more information are required, can be empty, f.e. format of an output, a directory etc."
                                 ],
                             ],
-                            "required" => ["command", "context_question"]
+                            "required" => ["executableShellCommand", "contextQuestion"],
                         ]
                     ]
                 ],
-                'function_call' => ['name' => 'get_shell_command'],
+                'function_call' => ['name' => 'handle_shell_command'],
             ]);
-
-            return $result;
         });
 
-        print_r($result->choices);
-        return json_decode($result->choices[0]->message->functionCall->arguments)->command;
+
+        return $this->deserializeResult($result->choices[0]->message->functionCall);
+    }
+
+    private function deserializeResult(CreateResponseFunctionCall $call): HandleShellCommand
+    {
+        print_r($call);
+        return $this->serializer->deserialize($call->arguments, HandleShellCommand::class, 'json');
     }
 }

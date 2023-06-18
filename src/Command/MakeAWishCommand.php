@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\DTOs\Context;
+use App\DTOs\HandleShellCommand;
 use App\Services\Wisher;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -12,6 +13,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
+use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Process\Process;
 
 class MakeAWishCommand extends Command
@@ -34,13 +36,38 @@ class MakeAWishCommand extends Command
     {
         $wish = $input->getArgument('wish');
 
-        $command = $this->wisher->wish($wish, Context::createFromDefaults());
-        $output->writeln($command);
+        return $this->handleWish($input, $output, $wish);
+    }
+
+    private function handleWish(
+        InputInterface $input,
+        OutputInterface $output,
+        string $wish,
+    ): int
+    {
+        $output->writeln($wish);
+
+        $wishResult = $this->wisher->wish($wish, Context::createFromDefaults());
+
+        if (!empty($wishResult->contextQuestion)) {
+            return $this->specifyContextByUserPrompt($input, $output, $wishResult);
+        }
+
+        return $this->handleShellCommand($input, $output, $wishResult);
+    }
+
+    private function handleShellCommand(
+        InputInterface $input,
+        OutputInterface $output,
+        HandleShellCommand $handleShellCommand,
+    ): int
+    {
+        $output->writeln($handleShellCommand->executableShellCommand);
 
         if (true === $input->getOption('dry-run')) {
             $helper = $this->getHelper('question');
             $question = new ConfirmationQuestion(
-                'Execute? [y/N]',
+                'Execute? [y/N] ',
                 false,
                 '/^(y|j)/i'
             );
@@ -50,9 +77,37 @@ class MakeAWishCommand extends Command
             }
         }
 
-        $process = Process::fromShellCommandline($command);
+        $process = Process::fromShellCommandline($handleShellCommand->executableShellCommand);
         $process->run(fn($type, $data) => $output->writeln($data));
 
         return Command::SUCCESS;
+    }
+
+    private function specifyContextByUserPrompt(
+        InputInterface $input,
+        OutputInterface $output,
+        HandleShellCommand $handleShellCommand,
+    ): int
+    {
+        print_r($handleShellCommand);
+        $helper = $this->getHelper('question');
+        $question = new Question(
+            rtrim($handleShellCommand->contextQuestion, '?.: ') . ': ',
+            '',
+        );
+        $answer = (string) $helper->ask($input, $output, $question);
+
+        $newPrompt = <<<EOD
+The users initial prompt was
+$handleShellCommand->executableShellCommand
+
+---
+the user was asked the following question about the context:
+$handleShellCommand->contextQuestion
+his answer was:
+$answer
+EOD;
+
+        return $this->handleWish($input, $output, $newPrompt);
     }
 }

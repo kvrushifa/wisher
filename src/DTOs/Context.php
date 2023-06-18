@@ -6,9 +6,7 @@ namespace App\DTOs;
 
 class Context implements \Stringable
 {
-    public function __construct(
-        public readonly string $os
-    )
+    public function __construct(public readonly string $os)
     {
     }
 
@@ -20,6 +18,6 @@ class Context implements \Stringable
 
     public function __toString(): string
     {
-        return sprintf('Users operating system information: %s', $this->os);
+        return sprintf('users operating system: %s', $this->os);
     }
 }
