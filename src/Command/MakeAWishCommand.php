@@ -35,6 +35,8 @@ class MakeAWishCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $wish = $input->getArgument('wish');
+        $output->writeln('<fg=blue;options=bold>' . $wish . '</>');
+
 
         return $this->handleWish($input, $output, $wish);
     }
@@ -45,7 +47,6 @@ class MakeAWishCommand extends Command
         string $wish,
     ): int
     {
-        $output->writeln($wish);
         $wishResult = $this->wisher->wish($wish, Context::createFromDefaults());
 
         if (!empty($wishResult->contextQuestion)) {
@@ -61,7 +62,8 @@ class MakeAWishCommand extends Command
         HandleShellCommand $handleShellCommand,
     ): int
     {
-        $output->writeln($handleShellCommand->executableShellCommand);
+
+        $output->writeln('<fg=red;options=bold>' . $handleShellCommand->executableShellCommand . '</>');
 
         if (true === $input->getOption('dry-run')) {
             $helper = $this->getHelper('question');
