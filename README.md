@@ -1,5 +1,3 @@
-Apologies for the confusion. Here's the updated documentation:
-
 # Wisher
 
 Wisher is a PHP CLI application that uses OpenAI's API to generate and execute shell commands based on prompts.
