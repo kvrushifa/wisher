@@ -1,3 +1,5 @@
+Apologies for the confusion. Here's the updated documentation:
+
 # Wisher
 
 Wisher is a PHP CLI application that uses OpenAI's API to generate and execute shell commands based on prompts.
@@ -14,13 +16,18 @@ Wisher is a PHP CLI application that uses OpenAI's API to generate and execute s
 To make a prompt and generate shell commands, use the following command:
 
 ```bash
-bin/console wisher:wish <prompt>
+bin/console wisher:wish <prompt> [--dry-run | -d]
 ```
 
 Replace `<prompt>` with your desired prompt for generating the shell commands.
+
+### Options
+
+- `--dry-run` or `-d`: Asks for confirmation before executing the generated shell commands.
+
+If the prompt is too vague, Wisher will automatically ask for more context to provide better results.
 
 ## TODO List
 
 - [ ] Make a runnable PHAR file for easy distribution and usage.
 - [ ] Error handling.
-- [ ] More context eventually.
