@@ -46,7 +46,6 @@ class MakeAWishCommand extends Command
     ): int
     {
         $output->writeln($wish);
-
         $wishResult = $this->wisher->wish($wish, Context::createFromDefaults());
 
         if (!empty($wishResult->contextQuestion)) {

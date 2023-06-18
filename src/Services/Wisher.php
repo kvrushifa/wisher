@@ -77,7 +77,7 @@ EOD,
 
     private function deserializeResult(CreateResponseFunctionCall $call): HandleShellCommand
     {
-        print_r($call);
+
         return $this->serializer->deserialize($call->arguments, HandleShellCommand::class, 'json');
     }
 }
