@@ -36,16 +36,20 @@ class Wisher
                 'functions' => [
                     [
                         "name" => "get_shell_command",
-                        "description" => "Gets a one line command for the user input",
+                        "description" => "Receives a one line shell command which executes the user_prompt",
                         "parameters" => [
                             "type" => "object",
                             "properties" => [
                                 "command" => [
                                     "type" => "string",
-                                    "description" => "Something a user wants to do on the shell, e.g. fetch all txt files in the directory"
+                                    "description" => "A shell command which can run on the specific operating system"
+                                ],
+                                "context_question" => [
+                                    "type" => "string",
+                                    "description" => "A question which can be asked to the user if more information are required, can be empty"
                                 ],
                             ],
-                            "required" => ["user_prompt"]
+                            "required" => ["command", "context_question"]
                         ]
                     ]
                 ],
@@ -55,6 +59,7 @@ class Wisher
             return $result;
         });
 
+        print_r($result->choices);
         return json_decode($result->choices[0]->message->functionCall->arguments)->command;
     }
 }
