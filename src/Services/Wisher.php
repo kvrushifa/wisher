@@ -80,6 +80,7 @@ EOD,
                     ]
                 ],
                 'function_call' => ['name' => 'handle_shell_command'],
+                'temperature' => 0.1,
             ]);
         });
 
