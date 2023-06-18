@@ -6,16 +6,19 @@ namespace App\Services;
 
 use App\DTOs\Context;
 use App\DTOs\HandleShellCommand;
-use App\DTOs\SpecifyContextCommand;
 use OpenAI\Client;
 use OpenAI\Responses\Chat\CreateResponse;
 use OpenAI\Responses\Chat\CreateResponseFunctionCall;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
-class Wisher
+class Wisher implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
+
     public function __construct(
         private readonly Client $openaiClient,
         private readonly CacheInterface $cache,
@@ -29,6 +32,7 @@ class Wisher
         /** @var CreateResponse $result */
         $result = $this->cache->get(md5($prompt), function (ItemInterface $item) use ($prompt, $context) {
             $item->expiresAfter(1);
+
             $completions = $this->openaiClient->chat();
 
             $messages[] = [
@@ -37,7 +41,10 @@ class Wisher
             ];
             $messages[] = [
                 'role' => 'system',
-                'content' => 'You will generate a shell command which can be run in the following context:' . (string) $context . '. If the user input is to vague, ask for more context in by using the contextQuestion',
+                'content' => <<<EOD
+You know the following about the users system:
+$context
+EOD,
             ];
 
             return $completions->create([
@@ -47,23 +54,28 @@ class Wisher
                     [
                         "name" => "handle_shell_command",
                         "description" => <<<EOD
-Receives shell commands as a string for executableShellCommand which can be executed on the user's system.
+Handles shell commands which can be executed on system of the users. 
 If the prompt is unclear, too vague or has a missing part always ask the user for more context using the contextQuestion.
-Note that the answers of the questions are not always deterministic.
+The answers of the questions can be new instruction or safe values. 
+Ask the user any question or execute commands on the users system to obtain any necessary information for the task.
 EOD,
                         "parameters" => [
                             "type" => "object",
                             "properties" => [
                                 "executableShellCommand" => [
                                     "type" => "string",
-                                    "description" => "Shell commands that can be executed without further information."
+                                    "description" => "Shell commands that can be executed on the users system without further information, multiple shell commands can be concatenated by && or |"
                                 ],
                                 "contextQuestion" => [
                                     "type" => "string",
-                                    "description" => "A question which can be asked to the user if more information are required, can be empty, f.e. format of an output, a directory etc."
+                                    "description" => "A question which can be asked to the user if more information is needed, f.e. format of an output, a directory etc."
+                                ],
+                                "contextCommand" => [
+                                    "type" => "string",
+                                    "description" => "A bash command that will be run on the users system in order to gather more context f.e. ls. The output will then be returned as additional context."
                                 ],
                             ],
-                            "required" => ["executableShellCommand", "contextQuestion"],
+                            "required" => ["executableShellCommand", "contextQuestion", "contextCommand"],
                         ]
                     ]
                 ],
@@ -71,6 +83,7 @@ EOD,
             ]);
         });
 
+        $this->logger->debug($prompt);
 
         return $this->deserializeResult($result->choices[0]->message->functionCall);
     }

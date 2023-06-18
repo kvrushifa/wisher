@@ -48,9 +48,12 @@ class MakeAWishCommand extends Command
     ): int
     {
         $wishResult = $this->wisher->wish($wish, Context::createFromDefaults());
+        if (!empty($wishResult->contextCommand)) {
+            return $this->specifyContextByCommand($input, $output, $wish, $wishResult);
+        }
 
         if (!empty($wishResult->contextQuestion)) {
-            return $this->specifyContextByUserPrompt($input, $output, $wishResult);
+            return $this->specifyContextByUserPrompt($input, $output, $wish, $wishResult);
         }
 
         return $this->handleShellCommand($input, $output, $wishResult);
@@ -62,24 +65,13 @@ class MakeAWishCommand extends Command
         HandleShellCommand $handleShellCommand,
     ): int
     {
-
         $output->writeln('<fg=red;options=bold>' . $handleShellCommand->executableShellCommand . '</>');
 
-        if (true === $input->getOption('dry-run')) {
-            $helper = $this->getHelper('question');
-            $question = new ConfirmationQuestion(
-                'Execute? [y/N] ',
-                false,
-                '/^(y|j)/i'
-            );
-
-            if(false === $helper->ask($input, $output, $question)) {
-                return Command::SUCCESS;
-            }
+        if (true === $input->getOption('dry-run') && false === $this->askForExecutionPrompt($input, $output)) {
+            return Command::FAILURE;
         }
 
-        $process = Process::fromShellCommandline($handleShellCommand->executableShellCommand);
-        $process->run(fn($type, $data) => $output->writeln($data));
+        $this->executeCommand($handleShellCommand->executableShellCommand, $output);
 
         return Command::SUCCESS;
     }
@@ -87,27 +79,72 @@ class MakeAWishCommand extends Command
     private function specifyContextByUserPrompt(
         InputInterface $input,
         OutputInterface $output,
+        string $wish,
         HandleShellCommand $handleShellCommand,
     ): int
     {
+        if (!$this->askForExecutionPrompt($input, $output)) {
+            return Command::FAILURE;
+        }
+        $questionString = rtrim($handleShellCommand->contextQuestion, '?.: ') . ': ';
         $helper = $this->getHelper('question');
         $question = new Question(
-            rtrim($handleShellCommand->contextQuestion, '?.: ') . ': ',
+            $questionString,
             '',
         );
         $answer = (string) $helper->ask($input, $output, $question);
 
-        $newPrompt = <<<EOD
-The users initial prompt was
-$handleShellCommand->executableShellCommand
+        $newPrompt = $wish . <<<EOD
 
 ---
 the user was asked the following question about the context:
-$handleShellCommand->contextQuestion
-his answer was:
-$answer
+$questionString $answer
 EOD;
 
         return $this->handleWish($input, $output, $newPrompt);
+    }
+
+    private function specifyContextByCommand(
+        InputInterface $input,
+        OutputInterface $output,
+        string $wish,
+        HandleShellCommand $handleShellCommand,
+    ): int {
+        $output->writeln('<fg=yellow;options=bold>' . $handleShellCommand->contextCommand . '</>');
+
+        if (!$this->askForExecutionPrompt($input, $output)) {
+            return Command::FAILURE;
+        }
+
+        $commandOutput = $this->executeCommand($handleShellCommand->contextCommand, $output);
+
+        $newPrompt = $wish . <<<EOD
+
+---
+running the command "$handleShellCommand->contextCommand" returned the following:
+$commandOutput
+EOD;
+
+        return $this->handleWish($input, $output, $newPrompt);
+    }
+
+    private function askForExecutionPrompt(InputInterface $input, OutputInterface $output): bool
+    {
+        $helper = $this->getHelper('question');
+        $question = new ConfirmationQuestion(
+            'Execute? [y/N] ',
+            false,
+            '/^(y|j)/i'
+        );
+
+        return $helper->ask($input, $output, $question);
+    }
+
+    public function executeCommand(string $command, OutputInterface $output): string
+    {
+        $process = Process::fromShellCommandline($command);
+        $process->run(fn($type, $data) => $output->writeln($data));
+
+        return $process->getOutput();
     }
 }
