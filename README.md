@@ -22,3 +22,6 @@ Replace `<prompt>` with your desired prompt for generating the shell commands.
 ## TODO List
 
 - [ ] Make a runnable PHAR file for easy distribution and usage.
+- [ ] Error handling.
+- [ ] More context eventually.
+- [ ] Own service(s) for the execution of shell commands
