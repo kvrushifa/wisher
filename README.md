@@ -2,6 +2,8 @@
 
 Wisher is a PHP CLI application that uses OpenAI's API to generate and execute shell commands based on prompts.
 
+![Example Prompt](docs/example-prompt.png)
+
 ## Prerequisites
 
 - PHP version 8.1 or higher must be installed.
