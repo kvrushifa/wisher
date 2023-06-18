@@ -90,7 +90,6 @@ class MakeAWishCommand extends Command
         HandleShellCommand $handleShellCommand,
     ): int
     {
-        print_r($handleShellCommand);
         $helper = $this->getHelper('question');
         $question = new Question(
             rtrim($handleShellCommand->contextQuestion, '?.: ') . ': ',

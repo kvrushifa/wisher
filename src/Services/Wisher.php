@@ -47,16 +47,16 @@ class Wisher
                     [
                         "name" => "handle_shell_command",
                         "description" => <<<EOD
-Receives a one line shell command as value for executableShellCommand which can be executed on the user's system.
+Receives shell commands as a string for executableShellCommand which can be executed on the user's system.
 If the prompt is unclear, too vague or has a missing part always ask the user for more context using the contextQuestion.
-Note that answered of the question's are not always deterministic
+Note that the answers of the questions are not always deterministic.
 EOD,
                         "parameters" => [
                             "type" => "object",
                             "properties" => [
                                 "executableShellCommand" => [
                                     "type" => "string",
-                                    "description" => "A shell command that can be executed without further information."
+                                    "description" => "Shell commands that can be executed without further information."
                                 ],
                                 "contextQuestion" => [
                                     "type" => "string",
